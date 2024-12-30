@@ -4,14 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
+	"strconv"
 	"strings"
 )
 
 type Request struct {
-	Method      string
-	Path        string
-	HttpVersion string
-	Header      Header
+	Method        string
+	Path          string
+	HttpVersion   string
+	Header        Header
+	ContentLength int
+	Body          io.Reader
 }
 
 func (r *Request) String() string {
@@ -37,6 +41,19 @@ func ParseRequest(requestBuffer *bufio.Reader) (*Request, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	contentLegthStr := request.Header.Get("Content-Length")
+
+	if contentLegthStr != "" {
+		contentLength, err := strconv.Atoi(contentLegthStr)
+
+		if err != nil {
+			return nil, err
+		}
+
+		request.ContentLength = contentLength
+		request.Body = io.LimitReader(requestBuffer, int64(contentLength))
 	}
 
 	return request, nil

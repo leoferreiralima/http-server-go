@@ -58,15 +58,20 @@ func newConnection(conn net.Conn) {
 func handleResponse(request *http.Request, responseWriter io.Writer) {
 	fmt.Printf("%s\n", request.String())
 
-	switch path := request.Path; {
+	path := request.Path
+	method := request.Method
+
+	switch {
 	case path == "/":
 		rootHandler(responseWriter)
 	case strings.HasPrefix(path, "/echo/"):
 		echoHandler(request, responseWriter)
 	case path == "/user-agent":
 		userAgentHandler(request, responseWriter)
-	case strings.HasPrefix(path, "/files/"):
-		fileHandler(request, responseWriter)
+	case method == "GET" && strings.HasPrefix(path, "/files/"):
+		getFileHandler(request, responseWriter)
+	case method == "POST" && strings.HasPrefix(path, "/files/"):
+		createFileHandler(request, responseWriter)
 	default:
 		notFoundHandler(responseWriter)
 	}
@@ -95,7 +100,7 @@ func userAgentHandler(request *http.Request, responseWriter io.Writer) {
 	response.Write(responseWriter)
 }
 
-func fileHandler(request *http.Request, responseWriter io.Writer) {
+func getFileHandler(request *http.Request, responseWriter io.Writer) {
 	path := *directory + "/" + request.Path[len("/files/"):]
 
 	contentBytes, err := os.ReadFile(path)
@@ -114,6 +119,28 @@ func fileHandler(request *http.Request, responseWriter io.Writer) {
 	response := http.NewResponse()
 	response.ContentType = "application/octet-stream"
 	response.Body = &content
+	response.Write(responseWriter)
+}
+
+func createFileHandler(request *http.Request, responseWriter io.Writer) {
+	path := *directory + "/" + request.Path[len("/files/"):]
+
+	content, err := io.ReadAll(request.Body)
+
+	if err != nil {
+		serverErrorHandler(responseWriter, err)
+		return
+	}
+
+	err = os.WriteFile(path, content, 0644)
+
+	if err != nil {
+		serverErrorHandler(responseWriter, err)
+		return
+	}
+
+	response := http.NewResponse()
+	response.StatusCode = 201
 	response.Write(responseWriter)
 }
 
