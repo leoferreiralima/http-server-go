@@ -60,6 +60,8 @@ func StatusText(statusCode int) string {
 		return "OK"
 	case 404:
 		return "Not Found"
+	case 500:
+		return "Server Error"
 	default:
 		return ""
 	}
